@@ -64,9 +64,6 @@ export class PatternEffectivenessCalculator {
     // Base effectiveness from matrix
     let base = this.effectivenessMatrix[pattern.id]?.[challenge.type] || 0.5;
     
-    // Time-based maturity
-    let maturity = this.calculateMaturity(pattern, gameState.currentWeek);
-    
     // Synergy calculations
     let synergy = this.calculateSynergies(pattern, allPatterns, challenge);
     
@@ -79,8 +76,8 @@ export class PatternEffectivenessCalculator {
     // Coverage ratio - how much of the challenge this pattern addresses
     let coverage = this.calculateCoverage(pattern, challenge);
     
-    // Final effectiveness calculation
-    let effectiveness = base * maturity * synergy * expertise * coverage + realWorldBonus;
+    // Final effectiveness calculation (removed maturity)
+    let effectiveness = base * synergy * expertise * coverage + realWorldBonus;
     
     // Clamp between 0 and 2 (can be super effective)
     return Math.max(0, Math.min(2, effectiveness));

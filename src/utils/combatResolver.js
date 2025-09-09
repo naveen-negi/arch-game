@@ -6,16 +6,12 @@ export class CombatResolver {
     this.calculator = new PatternEffectivenessCalculator();
   }
   
-  resolveChallenge(challenge, deployedPatterns, diceRoll, gameState) {
+  resolveChallenge(challenge, deployedPatterns, gameState) {
     let totalDefense = 0;
     let defenseBreakdown = [];
     
     // Calculate each pattern's contribution
     for (let pattern of deployedPatterns) {
-      if (pattern.completionWeek && pattern.completionWeek > gameState.currentWeek) {
-        continue; // Pattern not yet active
-      }
-      
       let effectiveness = this.calculator.calculateEffectiveness(
         pattern,
         challenge,
@@ -28,25 +24,13 @@ export class CombatResolver {
       
       defenseBreakdown.push({
         pattern: pattern.name,
-        contribution: defense,
-        effectiveness: effectiveness
+        contribution: Math.round(defense * 100) / 100,
+        effectiveness: Math.round(effectiveness * 100) / 100
       });
     }
     
-    // Apply dice roll to challenge strength with safety checks
-    const dice1 = diceRoll?.value1 || 1;
-    const dice2 = diceRoll?.value2 || 1;
-    let diceMultiplier = (dice1 + dice2) / 7;
-    let challengeStrength = (challenge.baseStrength || 10) * diceMultiplier;
-    
-    // Critical hit/miss on doubles
-    if (dice1 === dice2) {
-      if (dice1 <= 2) {
-        challengeStrength *= 0.5; // Lucky - challenge weakened
-      } else if (dice1 >= 5) {
-        challengeStrength *= 1.5; // Unlucky - challenge strengthened
-      }
-    }
+    // Use base challenge strength directly
+    let challengeStrength = challenge.baseStrength || 10;
     
     // Calculate damage
     let damageRatio = challengeStrength > 0 ? 

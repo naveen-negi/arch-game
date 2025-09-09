@@ -2,27 +2,24 @@ import { GAME_CONSTANTS } from '../data/constants';
 
 export const gameActions = {
     DEPLOY_PATTERN: 'DEPLOY_PATTERN',
-    ADVANCE_WEEK: 'ADVANCE_WEEK',
     RESOLVE_CHALLENGE: 'RESOLVE_CHALLENGE',
+    NEXT_CHALLENGE: 'NEXT_CHALLENGE',
     UPDATE_METRICS: 'UPDATE_METRICS',
     ADD_EVENT: 'ADD_EVENT',
-    UPDATE_BUDGET: 'UPDATE_BUDGET'
+    RESET_GAME: 'RESET_GAME'
 };
 
 export const initialState = {
-    currentWeek: 1,
     budget: GAME_CONSTANTS.INITIAL_BUDGET,
-    storyPointsAvailable: GAME_CONSTANTS.INITIAL_STORY_POINTS,
     metrics: { ...GAME_CONSTANTS.INITIAL_METRICS },
     deployedPatterns: [],
     eventLog: [{
-        week: 1,
-        message: 'Game started - Welcome to FoodFlow!',
+        message: 'Game started - Welcome to the Architecture Defense Challenge!',
         type: 'info'
     }],
-    team: { ...GAME_CONSTANTS.TEAM_COMPOSITION },
-    teamExpertise: 2,
-    score: 0
+    teamExpertise: 3,
+    score: 0,
+    challengesCompleted: 0
 };
 
 export const gameReducer = (state, action) => {
@@ -30,31 +27,24 @@ export const gameReducer = (state, action) => {
         case gameActions.DEPLOY_PATTERN:
             if (state.budget < action.pattern.cost) return state;
 
-            const completionWeek = state.currentWeek +
-                Math.ceil(action.pattern.implementationTime || 1);
-
             return {
                 ...state,
                 budget: state.budget - action.pattern.cost,
                 deployedPatterns: [...state.deployedPatterns, {
                     ...action.pattern,
-                    deployedWeek: state.currentWeek,
-                    completionWeek,
                     id: `${action.pattern.id}-${Date.now()}`
                 }],
                 eventLog: [...state.eventLog, {
-                    week: state.currentWeek,
                     message: `Deployed ${action.pattern.name}`,
                     type: 'deploy'
                 }]
             };
 
-        case gameActions.ADVANCE_WEEK:
+        case gameActions.NEXT_CHALLENGE:
             return {
                 ...state,
-                currentWeek: state.currentWeek + 1,
-                storyPointsAvailable: GAME_CONSTANTS.STORY_POINTS_PER_WEEK,
-                teamExpertise: Math.min(5, state.teamExpertise + 0.1)
+                challengesCompleted: state.challengesCompleted + 1,
+                teamExpertise: Math.min(5, state.teamExpertise + 0.2)
             };
 
         case gameActions.RESOLVE_CHALLENGE:
@@ -79,8 +69,8 @@ export const gameReducer = (state, action) => {
                 ...state,
                 metrics: newMetrics,
                 score: state.score + action.scoreGain,
+                challengesCompleted: state.challengesCompleted + 1,
                 eventLog: [...state.eventLog, {
-                    week: state.currentWeek,
                     message: `${action.challengeName}: ${combatResult.success} defense! (${combatResult.challengeStrength} vs ${combatResult.totalDefense})`,
                     type: 'combat'
                 }]

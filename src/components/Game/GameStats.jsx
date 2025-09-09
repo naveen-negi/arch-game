@@ -1,13 +1,13 @@
 import React from 'react';
-import { Clock, DollarSign, Activity, Award } from 'lucide-react';
+import { DollarSign, Activity, Award, Target } from 'lucide-react';
 import { calculateScore } from '../../utils/scoring';
 
 const GameStats = ({ gameState }) => {
     const stats = [
         {
-            icon: Clock,
-            label: 'Week',
-            value: `${gameState.currentWeek}/10`,
+            icon: Target,
+            label: 'Challenges',
+            value: `${gameState.challengesCompleted}`,
             color: 'text-blue-500'
         },
         {

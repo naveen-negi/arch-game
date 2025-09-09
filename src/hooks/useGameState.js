@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useState } from 'react';
+import { useReducer, useState } from 'react';
 import { gameReducer, initialState, gameActions } from '../reducers/gameReducer';
 import { challenges } from '../data/challenges';
 import { GAME_PHASES } from '../data/constants';
@@ -7,34 +7,28 @@ import { CombatResolver } from '../utils/combatResolver';
 export const useGameState = () => {
     const [state, dispatch] = useReducer(gameReducer, initialState);
     const [gamePhase, setGamePhase] = useState(GAME_PHASES.PLANNING);
-    const [activeChallenge, setActiveChallenge] = useState(null);
+    const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0);
     const [combatResolver] = useState(() => new CombatResolver());
-
-    useEffect(() => {
-        const currentChallenge = challenges.find(c => c.week === state.currentWeek);
-        if (currentChallenge) {
-            setActiveChallenge(currentChallenge);
-            setGamePhase(GAME_PHASES.CHALLENGE);
-        }
-    }, [state.currentWeek]);
-
+    
+    // Get current challenge
+    const activeChallenge = challenges[currentChallengeIndex] || null;
+    
     const deployPattern = (pattern) => {
         dispatch({ type: gameActions.DEPLOY_PATTERN, pattern });
     };
 
-    const advanceWeek = () => {
-        dispatch({ type: gameActions.ADVANCE_WEEK });
-        setGamePhase(GAME_PHASES.PLANNING);
-        setActiveChallenge(null);
+    const startChallenge = () => {
+        if (activeChallenge) {
+            setGamePhase(GAME_PHASES.CHALLENGE);
+        }
     };
 
-    const resolveChallenge = (diceRoll) => {
+    const resolveChallenge = () => {
         if (!activeChallenge) return;
         
         const combatResult = combatResolver.resolveChallenge(
             activeChallenge,
             state.deployedPatterns,
-            diceRoll,
             state
         );
         
@@ -48,14 +42,23 @@ export const useGameState = () => {
         });
         setGamePhase(GAME_PHASES.RESOLUTION);
     };
+    
+    const nextChallenge = () => {
+        if (currentChallengeIndex < challenges.length - 1) {
+            setCurrentChallengeIndex(currentChallengeIndex + 1);
+            setGamePhase(GAME_PHASES.PLANNING);
+        }
+    };
 
     return {
         gameState: state,
         gamePhase,
         activeChallenge,
         deployPattern,
-        advanceWeek,
+        startChallenge,
         resolveChallenge,
-        setGamePhase
+        nextChallenge,
+        setGamePhase,
+        isLastChallenge: currentChallengeIndex >= challenges.length - 1
     };
 };

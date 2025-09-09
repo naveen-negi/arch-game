@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useGameState } from './hooks/useGameState';
-import { useDice } from './hooks/useDice';
 import { GAME_PHASES } from './data/constants';
 
 import GameStats from './components/Game/GameStats';
@@ -11,7 +10,6 @@ import PlanningPhase from './components/Phases/PlanningPhase';
 import ResolutionPhase from './components/Phases/ResolutionPhase';
 import EventLog from './components/Game/EventLog';
 import VictoryConditions from './components/Game/VictoryConditions';
-import UpcomingChallenges from './components/Challenges/UpcomingChallenges';
 
 function App() {
     const {
@@ -19,12 +17,13 @@ function App() {
         gamePhase,
         activeChallenge,
         deployPattern,
-        advanceWeek,
+        startChallenge,
         resolveChallenge,
-        setGamePhase
+        nextChallenge,
+        setGamePhase,
+        isLastChallenge
     } = useGameState();
 
-    const { diceState, rollDice } = useDice();
     const [selectedPattern, setSelectedPattern] = useState(null);
 
     const handleDeployPattern = (pattern) => {
@@ -66,15 +65,14 @@ function App() {
                                     selectedPattern={selectedPattern}
                                     onDeployPattern={handleDeployPattern}
                                     gameState={gameState}
-                                    onAdvanceWeek={advanceWeek}
+                                    activeChallenge={activeChallenge}
+                                    onStartChallenge={startChallenge}
                                 />
                             )}
 
                             {gamePhase === GAME_PHASES.CHALLENGE && activeChallenge && (
                                 <ChallengePhase
                                     challenge={activeChallenge}
-                                    diceState={diceState}
-                                    rollDice={rollDice}
                                     resolveChallenge={resolveChallenge}
                                     deployedPatterns={gameState.deployedPatterns}
                                 />
@@ -82,12 +80,11 @@ function App() {
 
                             {gamePhase === GAME_PHASES.RESOLUTION && (
                                 <ResolutionPhase
-                                    onAdvanceWeek={advanceWeek}
+                                    onNextChallenge={nextChallenge}
                                     gameState={gameState}
+                                    isLastChallenge={isLastChallenge}
                                 />
                             )}
-
-                            <UpcomingChallenges currentWeek={gameState.currentWeek} />
                         </div>
 
                         <EventLog events={gameState.eventLog} />
