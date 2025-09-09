@@ -1,0 +1,547 @@
+import React, { useState, useEffect, useReducer } from 'react';
+import { AlertCircle, Shield, Zap, Users, Package, TrendingUp, Activity, Award, Clock, DollarSign, ChevronRight, Dice1, Dice2, Dice3, Dice4, Dice5, Dice6 } from 'lucide-react';
+
+// Game state reducer
+const gameReducer = (state, action) => {
+  switch (action.type) {
+    case 'DEPLOY_PATTERN':
+      if (state.budget < action.pattern.cost) return state;
+      return {
+        ...state,
+        budget: state.budget - action.pattern.cost,
+        deployedPatterns: [...state.deployedPatterns, {
+          ...action.pattern,
+          deployedWeek: state.currentWeek,
+          completionWeek: state.currentWeek + Math.ceil(action.pattern.cost / 4)
+        }],
+        eventLog: [...state.eventLog, `Week ${state.currentWeek}: Deployed ${action.pattern.name}`]
+      };
+
+    case 'ADVANCE_WEEK':
+      return {
+        ...state,
+        currentWeek: state.currentWeek + 1,
+        storyPointsAvailable: 32 // Reset weekly story points
+      };
+
+    case 'RESOLVE_CHALLENGE':
+      const damage = Math.max(0, action.challengeStrength - action.defenseStrength);
+      return {
+        ...state,
+        metrics: {
+          ...state.metrics,
+          availability: Math.max(0, state.metrics.availability - damage * 0.5),
+          latency: state.metrics.latency + damage * 50,
+          userExperience: Math.max(0, state.metrics.userExperience - damage * 2)
+        },
+        eventLog: [...state.eventLog, `Week ${state.currentWeek}: ${action.challengeName} dealt ${damage} damage`]
+      };
+
+    case 'UPDATE_METRICS':
+      return {
+        ...state,
+        metrics: { ...state.metrics, ...action.metrics }
+      };
+
+    default:
+      return state;
+  }
+};
+
+// Initial game state
+const initialState = {
+  currentWeek: 1,
+  budget: 120,
+  storyPointsAvailable: 32,
+  metrics: {
+    availability: 95.0,
+    latency: 800,
+    userExperience: 70,
+    security: 50
+  },
+  deployedPatterns: [],
+  eventLog: ['Game started - Welcome to FoodFlow!'],
+  team: {
+    senior: 3,
+    mid: 4,
+    junior: 2
+  }
+};
+
+// Pattern definitions
+const patterns = {
+  operational: [
+    {
+      id: 'load-shedding',
+      name: 'Load Shedding',
+      category: 'Operational',
+      cost: 4,
+      icon: Shield,
+      description: 'Deprioritize non-essential work during overload',
+      effectiveness: { stability: 5, goodput: 4 },
+      weaknesses: ['Indiscriminate impact', 'Work rejection'],
+      restaurant: 'Like skipping napkin folding during rush'
+    },
+    {
+      id: 'fairness-quota',
+      name: 'Fairness & Quota Management',
+      category: 'Operational',
+      cost: 6,
+      icon: Users,
+      description: 'Ensure equitable resource access',
+      effectiveness: { fairness: 4, performance: 3 },
+      weaknesses: ['Legitimate burst rejection', 'Customer frustration'],
+      restaurant: 'Like holiday dining time limits'
+    },
+    {
+      id: 'auto-scaling',
+      name: 'Auto-scaling',
+      category: 'Operational',
+      cost: 8,
+      icon: TrendingUp,
+      description: 'Dynamically adjust capacity',
+      effectiveness: { elasticity: 5, cost: 3 },
+      weaknesses: ['Scaling lag', 'Cold starts'],
+      restaurant: 'Like adjusting menu for seasons'
+    }
+  ],
+  architectural: [
+    {
+      id: 'queue-management',
+      name: 'Queue Depth Management',
+      category: 'Architectural',
+      cost: 5,
+      icon: Package,
+      description: 'Control queue size to prevent overflow',
+      effectiveness: { latency: 5, timeout: 4 },
+      weaknesses: ['Work rejection', 'Sizing challenges'],
+      restaurant: 'Like managing restaurant wait list'
+    },
+    {
+      id: 'constant-work',
+      name: 'Constant Work Pattern',
+      category: 'Architectural',
+      cost: 7,
+      icon: Activity,
+      description: 'Perform consistent work regardless of load',
+      effectiveness: { predictability: 6, stability: 5 },
+      weaknesses: ['Wasted resources', 'Higher cost'],
+      restaurant: 'Like serving preset hors d\'oeuvres'
+    },
+    {
+      id: 'circuit-breaker',
+      name: 'Circuit Breakers',
+      category: 'Client',
+      cost: 6,
+      icon: Zap,
+      description: 'Prevent cascading failures',
+      effectiveness: { isolation: 5, recovery: 4 },
+      weaknesses: ['False positives', 'Threshold tuning'],
+      restaurant: 'Like stopping orders when kitchen overwhelmed'
+    }
+  ]
+};
+
+// Challenge waves
+const challenges = [
+  {
+    id: 'coffee-rush',
+    name: 'Morning Coffee Rush',
+    week: 2,
+    threat: 2,
+    description: '3x traffic spike 7-9 AM',
+    damage: { ux: 5 },
+    counters: ['load-shedding', 'auto-scaling']
+  },
+  {
+    id: 'restaurant-outage',
+    name: 'Popular Restaurant Outage',
+    week: 3,
+    threat: 3,
+    description: 'Top restaurant API fails',
+    damage: { availability: 10, ux: 8 },
+    counters: ['circuit-breaker', 'fairness-quota']
+  },
+  {
+    id: 'thundering-herd',
+    name: 'The Thundering Herd',
+    week: 4,
+    threat: 4,
+    description: '50,000 simultaneous orders',
+    damage: { availability: 15 },
+    counters: ['queue-management', 'load-shedding']
+  }
+];
+
+// Dice component
+const Dice = ({ value, rolling }) => {
+  const DiceIcons = [Dice1, Dice2, Dice3, Dice4, Dice5, Dice6];
+  const DiceIcon = DiceIcons[value - 1] || Dice1;
+
+  return (
+    <div className={`inline-block ${rolling ? 'animate-spin' : ''}`}>
+      <DiceIcon className="w-12 h-12 text-blue-600" />
+    </div>
+  );
+};
+
+// Main game component
+export default function ArchitectureStrategyGame() {
+  const [gameState, dispatch] = useReducer(gameReducer, initialState);
+  const [selectedPattern, setSelectedPattern] = useState(null);
+  const [diceRoll, setDiceRoll] = useState({ value1: 1, value2: 1, rolling: false });
+  const [activeChallenge, setActiveChallenge] = useState(null);
+  const [gamePhase, setGamePhase] = useState('planning'); // planning, challenge, resolution
+
+  // Roll dice function
+  const rollDice = () => {
+    setDiceRoll({ ...diceRoll, rolling: true });
+    setTimeout(() => {
+      const value1 = Math.floor(Math.random() * 6) + 1;
+      const value2 = Math.floor(Math.random() * 6) + 1;
+      setDiceRoll({ value1, value2, rolling: false });
+    }, 500);
+  };
+
+  // Check for challenges
+  useEffect(() => {
+    const currentChallenge = challenges.find(c => c.week === gameState.currentWeek);
+    if (currentChallenge) {
+      setActiveChallenge(currentChallenge);
+      setGamePhase('challenge');
+    }
+  }, [gameState.currentWeek]);
+
+  // Calculate defense strength
+  const calculateDefense = (challenge) => {
+    let defense = 0;
+    gameState.deployedPatterns.forEach(pattern => {
+      if (pattern.completionWeek <= gameState.currentWeek) {
+        if (challenge.counters.includes(pattern.id)) {
+          defense += 4;
+        } else {
+          defense += 1;
+        }
+      }
+    });
+    return defense;
+  };
+
+  // Handle pattern deployment
+  const deployPattern = (pattern) => {
+    dispatch({ type: 'DEPLOY_PATTERN', pattern });
+    setSelectedPattern(null);
+  };
+
+  // Resolve challenge
+  const resolveChallenge = () => {
+    if (!activeChallenge) return;
+
+    const challengeStrength = diceRoll.value1 + diceRoll.value2;
+    const defenseStrength = calculateDefense(activeChallenge);
+
+    dispatch({
+      type: 'RESOLVE_CHALLENGE',
+      challengeName: activeChallenge.name,
+      challengeStrength,
+      defenseStrength
+    });
+
+    setGamePhase('resolution');
+  };
+
+  // Advance to next week
+  const advanceWeek = () => {
+    dispatch({ type: 'ADVANCE_WEEK' });
+    setGamePhase('planning');
+    setActiveChallenge(null);
+  };
+
+  // Calculate score
+  const calculateScore = () => {
+    const availScore = Math.max(0, (gameState.metrics.availability - 90) * 3);
+    const latencyScore = Math.max(0, (1000 - gameState.metrics.latency) / 20);
+    const uxScore = gameState.metrics.userExperience / 2;
+    return Math.round(availScore + latencyScore + uxScore);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700">
+          <h1 className="text-3xl font-bold mb-2 text-blue-400">
+            🍔 The Lunch Rush Resilience Protocol
+          </h1>
+          <p className="text-gray-300">FoodFlow Architecture Strategy Game</p>
+        </div>
+
+        {/* Game Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <div className="flex items-center justify-between">
+              <Clock className="w-8 h-8 text-blue-500" />
+              <div className="text-right">
+                <p className="text-sm text-gray-400">Week</p>
+                <p className="text-2xl font-bold">{gameState.currentWeek}/10</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <div className="flex items-center justify-between">
+              <DollarSign className="w-8 h-8 text-green-500" />
+              <div className="text-right">
+                <p className="text-sm text-gray-400">Budget</p>
+                <p className="text-2xl font-bold">{gameState.budget} AP</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <div className="flex items-center justify-between">
+              <Activity className="w-8 h-8 text-yellow-500" />
+              <div className="text-right">
+                <p className="text-sm text-gray-400">Availability</p>
+                <p className="text-2xl font-bold">{gameState.metrics.availability.toFixed(1)}%</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <div className="flex items-center justify-between">
+              <Award className="w-8 h-8 text-purple-500" />
+              <div className="text-right">
+                <p className="text-sm text-gray-400">Score</p>
+                <p className="text-2xl font-bold">{calculateScore()}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Game Area */}
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Left Panel - Patterns */}
+          <div className="md:col-span-1">
+            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+              <h2 className="text-xl font-bold mb-4 text-blue-400">Available Patterns</h2>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {[...patterns.operational, ...patterns.architectural].map(pattern => (
+                  <div
+                    key={pattern.id}
+                    onClick={() => setSelectedPattern(pattern)}
+                    className={`p-3 rounded cursor-pointer transition-all ${
+                      selectedPattern?.id === pattern.id
+                        ? 'bg-blue-900 border-blue-500'
+                        : 'bg-gray-700 hover:bg-gray-600'
+                    } border ${
+                      gameState.budget < pattern.cost
+                        ? 'opacity-50 cursor-not-allowed'
+                        : 'border-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <pattern.icon className="w-5 h-5" />
+                        <span className="font-semibold">{pattern.name}</span>
+                      </div>
+                      <span className="text-sm text-yellow-400">{pattern.cost} AP</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">{pattern.restaurant}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Deployed Patterns */}
+            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 mt-4">
+              <h2 className="text-xl font-bold mb-4 text-green-400">Deployed Patterns</h2>
+              <div className="space-y-2">
+                {gameState.deployedPatterns.length === 0 ? (
+                  <p className="text-gray-500 text-sm">No patterns deployed yet</p>
+                ) : (
+                  gameState.deployedPatterns.map((pattern, idx) => (
+                    <div key={idx} className="bg-gray-700 p-2 rounded text-sm">
+                      <div className="flex justify-between">
+                        <span>{pattern.name}</span>
+                        <span className={pattern.completionWeek <= gameState.currentWeek ? 'text-green-400' : 'text-yellow-400'}>
+                          {pattern.completionWeek <= gameState.currentWeek ? '✓ Active' : `Week ${pattern.completionWeek}`}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Center Panel - Game Board */}
+          <div className="md:col-span-2">
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              {gamePhase === 'planning' && (
+                <div>
+                  <h2 className="text-2xl font-bold mb-4 text-blue-400">Planning Phase</h2>
+
+                  {selectedPattern && (
+                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                      <h3 className="text-lg font-bold mb-2">{selectedPattern.name}</h3>
+                      <p className="text-sm text-gray-300 mb-3">{selectedPattern.description}</p>
+                      <div className="grid grid-cols-2 gap-4 mb-3">
+                        <div>
+                          <p className="text-xs text-gray-400 mb-1">Strengths:</p>
+                          {Object.entries(selectedPattern.effectiveness).map(([key, val]) => (
+                            <div key={key} className="text-sm">
+                              <span className="capitalize">{key}:</span>
+                              <span className="ml-2 text-green-400">+{val}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 mb-1">Weaknesses:</p>
+                          {selectedPattern.weaknesses.map((weak, idx) => (
+                            <p key={idx} className="text-sm text-red-400">• {weak}</p>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => deployPattern(selectedPattern)}
+                        disabled={gameState.budget < selectedPattern.cost}
+                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-4 py-2 rounded transition-colors"
+                      >
+                        Deploy Pattern ({selectedPattern.cost} AP)
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm text-gray-400">Story Points Available</p>
+                      <p className="text-xl font-bold">{gameState.storyPointsAvailable}</p>
+                    </div>
+                    <button
+                      onClick={advanceWeek}
+                      className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold transition-colors flex items-center"
+                    >
+                      Advance to Week {gameState.currentWeek + 1}
+                      <ChevronRight className="ml-2" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {gamePhase === 'challenge' && activeChallenge && (
+                <div>
+                  <h2 className="text-2xl font-bold mb-4 text-red-400">⚔️ Challenge Phase</h2>
+                  <div className="bg-red-900 bg-opacity-30 border border-red-600 rounded-lg p-4 mb-4">
+                    <h3 className="text-xl font-bold mb-2">{activeChallenge.name}</h3>
+                    <p className="text-gray-300 mb-2">{activeChallenge.description}</p>
+                    <div className="flex items-center space-x-2 mb-3">
+                      <span className="text-sm text-gray-400">Threat Level:</span>
+                      {[...Array(activeChallenge.threat)].map((_, i) => (
+                        <span key={i} className="text-yellow-400">⭐</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="text-center">
+                    <p className="mb-4 text-gray-300">Roll dice to determine challenge strength!</p>
+                    <div className="flex justify-center space-x-4 mb-4">
+                      <Dice value={diceRoll.value1} rolling={diceRoll.rolling} />
+                      <Dice value={diceRoll.value2} rolling={diceRoll.rolling} />
+                    </div>
+                    <div className="mb-4">
+                      <p className="text-2xl font-bold">
+                        Challenge Strength: {diceRoll.value1 + diceRoll.value2}
+                      </p>
+                      <p className="text-lg text-blue-400">
+                        Your Defense: {calculateDefense(activeChallenge)}
+                      </p>
+                    </div>
+                    <div className="flex justify-center space-x-4">
+                      <button
+                        onClick={rollDice}
+                        disabled={diceRoll.rolling}
+                        className="bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 px-6 py-3 rounded-lg font-semibold transition-colors"
+                      >
+                        Roll Dice
+                      </button>
+                      <button
+                        onClick={resolveChallenge}
+                        className="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg font-semibold transition-colors"
+                      >
+                        Resolve Challenge
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {gamePhase === 'resolution' && (
+                <div>
+                  <h2 className="text-2xl font-bold mb-4 text-yellow-400">Resolution Phase</h2>
+                  <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                    <p className="text-lg mb-2">Challenge resolved!</p>
+                    <p className="text-gray-300">Check the metrics panel to see the impact.</p>
+                  </div>
+                  <button
+                    onClick={advanceWeek}
+                    className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold transition-colors"
+                  >
+                    Continue to Week {gameState.currentWeek + 1}
+                  </button>
+                </div>
+              )}
+
+              {/* Upcoming Challenges */}
+              <div className="mt-6">
+                <h3 className="text-lg font-bold mb-3 text-yellow-400">Upcoming Challenges</h3>
+                <div className="space-y-2">
+                  {challenges
+                    .filter(c => c.week > gameState.currentWeek && c.week <= gameState.currentWeek + 3)
+                    .map(challenge => (
+                      <div key={challenge.id} className="bg-gray-700 p-2 rounded flex justify-between items-center">
+                        <span className="text-sm">{challenge.name}</span>
+                        <span className="text-xs text-gray-400">Week {challenge.week}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Event Log */}
+            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 mt-4">
+              <h3 className="text-lg font-bold mb-3 text-blue-400">Event Log</h3>
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {gameState.eventLog.slice(-5).reverse().map((event, idx) => (
+                  <p key={idx} className="text-sm text-gray-300">
+                    <AlertCircle className="inline w-3 h-3 mr-1" />
+                    {event}
+                  </p>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Victory Conditions */}
+        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 mt-6">
+          <h3 className="text-lg font-bold mb-3 text-green-400">Victory Conditions</h3>
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className={`p-3 rounded ${gameState.metrics.latency < 500 ? 'bg-green-900' : 'bg-gray-700'}`}>
+              <p className="text-sm font-semibold">P99 Latency &lt; 500ms</p>
+              <p className="text-xs text-gray-400">Current: {gameState.metrics.latency}ms</p>
+            </div>
+            <div className={`p-3 rounded ${gameState.metrics.availability > 99.9 ? 'bg-green-900' : 'bg-gray-700'}`}>
+              <p className="text-sm font-semibold">Availability &gt; 99.9%</p>
+              <p className="text-xs text-gray-400">Current: {gameState.metrics.availability.toFixed(2)}%</p>
+            </div>
+            <div className={`p-3 rounded ${gameState.metrics.userExperience > 80 ? 'bg-green-900' : 'bg-gray-700'}`}>
+              <p className="text-sm font-semibold">User Experience &gt; 80</p>
+              <p className="text-xs text-gray-400">Current: {gameState.metrics.userExperience}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

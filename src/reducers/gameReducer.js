@@ -70,6 +70,7 @@ export const gameReducer = (state, action) => {
                 metrics: newMetrics,
                 score: state.score + action.scoreGain,
                 challengesCompleted: state.challengesCompleted + 1,
+                lastCombatResult: combatResult, // Store for detailed analysis
                 eventLog: [...state.eventLog, {
                     message: `${action.challengeName}: ${combatResult.success} defense! (${combatResult.challengeStrength} vs ${combatResult.totalDefense})`,
                     type: 'combat'

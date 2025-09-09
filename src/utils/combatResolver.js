@@ -10,22 +10,25 @@ export class CombatResolver {
     let totalDefense = 0;
     let defenseBreakdown = [];
     
-    // Calculate each pattern's contribution
+    // Calculate each pattern's contribution with detailed rationale
     for (let pattern of deployedPatterns) {
-      let effectiveness = this.calculator.calculateEffectiveness(
+      let effectivenessDetails = this.calculator.calculateEffectivenessWithRationale(
         pattern,
         challenge,
         deployedPatterns,
         gameState
       );
       
-      let defense = effectiveness * (pattern.strength || 5);
+      let defense = effectivenessDetails.effectiveness * (pattern.strength || 5);
       totalDefense += defense;
       
       defenseBreakdown.push({
         pattern: pattern.name,
+        patternId: pattern.id,
         contribution: Math.round(defense * 100) / 100,
-        effectiveness: Math.round(effectiveness * 100) / 100
+        effectiveness: Math.round(effectivenessDetails.effectiveness * 100) / 100,
+        rationale: effectivenessDetails.rationale,
+        factors: effectivenessDetails.factors
       });
     }
     

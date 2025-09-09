@@ -61,26 +61,54 @@ export class PatternEffectivenessCalculator {
   }
   
   calculateEffectiveness(pattern, challenge, allPatterns, gameState) {
+    return this.calculateEffectivenessWithRationale(pattern, challenge, allPatterns, gameState).effectiveness;
+  }
+  
+  calculateEffectivenessWithRationale(pattern, challenge, allPatterns, gameState) {
     // Base effectiveness from matrix
     let base = this.effectivenessMatrix[pattern.id]?.[challenge.type] || 0.5;
     
     // Synergy calculations
-    let synergy = this.calculateSynergies(pattern, allPatterns, challenge);
+    let synergyDetails = this.calculateSynergiesWithRationale(pattern, allPatterns, challenge);
+    let synergy = synergyDetails.multiplier;
     
     // Team expertise modifier
-    let expertise = this.calculateExpertiseModifier(pattern, gameState.teamExpertise);
+    let expertiseDetails = this.calculateExpertiseModifierWithRationale(pattern, gameState.teamExpertise);
+    let expertise = expertiseDetails.multiplier;
     
     // Real-world calibration bonus
-    let realWorldBonus = this.getRealWorldCalibration(pattern.id, challenge.type);
+    let realWorldDetails = this.getRealWorldCalibrationWithRationale(pattern.id, challenge.type);
+    let realWorldBonus = realWorldDetails.bonus;
     
     // Coverage ratio - how much of the challenge this pattern addresses
-    let coverage = this.calculateCoverage(pattern, challenge);
+    let coverageDetails = this.calculateCoverageWithRationale(pattern, challenge);
+    let coverage = coverageDetails.ratio;
     
-    // Final effectiveness calculation (removed maturity)
+    // Final effectiveness calculation
     let effectiveness = base * synergy * expertise * coverage + realWorldBonus;
+    effectiveness = Math.max(0, Math.min(2, effectiveness));
     
-    // Clamp between 0 and 2 (can be super effective)
-    return Math.max(0, Math.min(2, effectiveness));
+    // Build comprehensive rationale
+    let rationale = this.buildRationale(pattern, challenge, {
+      base,
+      synergy: synergyDetails,
+      expertise: expertiseDetails,
+      realWorld: realWorldDetails,
+      coverage: coverageDetails,
+      final: effectiveness
+    });
+    
+    return {
+      effectiveness,
+      rationale,
+      factors: {
+        baseEffectiveness: Math.round(base * 100) / 100,
+        synergyMultiplier: Math.round(synergy * 100) / 100,
+        expertiseMultiplier: Math.round(expertise * 100) / 100,
+        coverageRatio: Math.round(coverage * 100) / 100,
+        realWorldBonus: Math.round(realWorldBonus * 100) / 100
+      }
+    };
   }
   
   calculateMaturity(pattern, currentWeek) {
@@ -159,5 +187,179 @@ export class PatternEffectivenessCalculator {
     }
     
     return aspectsCovered / totalAspects || 0.5; // Default 50% coverage
+  }
+  
+  // Enhanced methods with rationale
+  calculateSynergiesWithRationale(pattern, allPatterns, challenge) {
+    let synergyBonus = 1.0;
+    let synergies = [];
+    let conflicts = [];
+    
+    for (let other of allPatterns) {
+      if (other.id === pattern.id) continue;
+      
+      // Check predefined synergies
+      let key1 = `${pattern.id}+${other.id}`;
+      let key2 = `${other.id}+${pattern.id}`;
+      
+      if (this.synergyMap[key1]) {
+        synergyBonus *= this.synergyMap[key1];
+        if (this.synergyMap[key1] > 1) {
+          synergies.push(`${pattern.name} + ${other.name} creates powerful synergy (${Math.round((this.synergyMap[key1] - 1) * 100)}% bonus)`);
+        } else {
+          conflicts.push(`${pattern.name} conflicts with ${other.name} (${Math.round((1 - this.synergyMap[key1]) * 100)}% penalty)`);
+        }
+      } else if (this.synergyMap[key2]) {
+        synergyBonus *= this.synergyMap[key2];
+        if (this.synergyMap[key2] > 1) {
+          synergies.push(`${other.name} + ${pattern.name} creates synergy (${Math.round((this.synergyMap[key2] - 1) * 100)}% bonus)`);
+        } else {
+          conflicts.push(`${other.name} conflicts with ${pattern.name} (${Math.round((1 - this.synergyMap[key2]) * 100)}% penalty)`);
+        }
+      }
+      
+      // Check for category synergies
+      if (pattern.category === other.category) {
+        synergyBonus *= 1.05;
+        synergies.push(`Same category as ${other.name} (5% bonus)`);
+      }
+    }
+    
+    return {
+      multiplier: synergyBonus,
+      synergies,
+      conflicts,
+      explanation: synergies.length > 0 || conflicts.length > 0 ? 
+        "Pattern combinations affect effectiveness" : 
+        "No significant interactions with other patterns"
+    };
+  }
+  
+  calculateExpertiseModifierWithRationale(pattern, teamExpertise) {
+    let required = pattern.expertiseRequired || 2;
+    let current = teamExpertise || 3;
+    let multiplier;
+    let explanation;
+    
+    if (current >= required) {
+      multiplier = 1.0 + (current - required) * 0.1;
+      if (current > required) {
+        explanation = `Team expertise (${current}) exceeds required (${required}) - ${Math.round((multiplier - 1) * 100)}% bonus`;
+      } else {
+        explanation = `Team expertise perfectly matches requirements`;
+      }
+    } else {
+      multiplier = 0.7 + (current / required) * 0.3;
+      explanation = `Team expertise (${current}) below required (${required}) - ${Math.round((1 - multiplier) * 100)}% penalty`;
+    }
+    
+    return { multiplier, explanation };
+  }
+  
+  getRealWorldCalibrationWithRationale(patternId, challengeType) {
+    const knownEffective = {
+      'circuit-breaker': ['cascade-failure', 'dependency-failure'],
+      'load-shedding': ['traffic-spike', 'ddos-attack'],
+      'auto-scaling': ['gradual-growth', 'predictable-spike'],
+      'caching': ['database-overload', 'read-heavy'],
+      'rate-limiting': ['ddos-attack', 'api-abuse'],
+      'queue-management': ['traffic-spike', 'thundering-herd']
+    };
+    
+    if (knownEffective[patternId]?.includes(challengeType)) {
+      return {
+        bonus: 0.15,
+        explanation: "Proven effective in real-world incidents (+15% bonus)"
+      };
+    }
+    
+    return {
+      bonus: 0,
+      explanation: "No specific real-world validation for this combination"
+    };
+  }
+  
+  calculateCoverageWithRationale(pattern, challenge) {
+    let aspectsCovered = 0;
+    let totalAspects = challenge.aspects?.length || 1;
+    let coveredAspects = [];
+    let missedAspects = [];
+    
+    if (pattern.addresses && challenge.aspects) {
+      for (let aspect of challenge.aspects) {
+        if (pattern.addresses.includes(aspect)) {
+          aspectsCovered++;
+          coveredAspects.push(aspect);
+        } else {
+          missedAspects.push(aspect);
+        }
+      }
+    }
+    
+    let ratio = aspectsCovered / totalAspects || 0.5;
+    let explanation;
+    
+    if (coveredAspects.length === 0) {
+      explanation = "This pattern doesn't directly address the challenge's core issues";
+    } else if (missedAspects.length === 0) {
+      explanation = `Perfectly addresses all aspects: ${coveredAspects.join(', ')}`;
+    } else {
+      explanation = `Addresses ${coveredAspects.join(', ')} but misses ${missedAspects.join(', ')}`;
+    }
+    
+    return { ratio, explanation, coveredAspects, missedAspects };
+  }
+  
+  buildRationale(pattern, challenge, details) {
+    let rationale = [];
+    
+    // Base effectiveness explanation
+    let baseScore = Math.round(details.base * 100);
+    if (baseScore >= 80) {
+      rationale.push(`🎯 Excellent match: ${pattern.name} is highly effective against ${challenge.type} (${baseScore}% base effectiveness)`);
+    } else if (baseScore >= 60) {
+      rationale.push(`✅ Good fit: ${pattern.name} works well against ${challenge.type} (${baseScore}% base effectiveness)`);
+    } else if (baseScore >= 40) {
+      rationale.push(`⚠️ Moderate fit: ${pattern.name} has limited effectiveness against ${challenge.type} (${baseScore}% base effectiveness)`);
+    } else {
+      rationale.push(`❌ Poor match: ${pattern.name} is not well-suited for ${challenge.type} (${baseScore}% base effectiveness)`);
+    }
+    
+    // Coverage explanation
+    if (details.coverage.explanation) {
+      rationale.push(`📋 Coverage: ${details.coverage.explanation}`);
+    }
+    
+    // Team expertise
+    if (details.expertise.explanation) {
+      rationale.push(`👥 Team: ${details.expertise.explanation}`);
+    }
+    
+    // Synergies and conflicts
+    if (details.synergy.synergies.length > 0) {
+      rationale.push(`🔗 Synergies: ${details.synergy.synergies.join('; ')}`);
+    }
+    if (details.synergy.conflicts.length > 0) {
+      rationale.push(`⚡ Conflicts: ${details.synergy.conflicts.join('; ')}`);
+    }
+    
+    // Real-world validation
+    if (details.realWorld.bonus > 0) {
+      rationale.push(`🌍 ${details.realWorld.explanation}`);
+    }
+    
+    // Final assessment
+    let finalScore = Math.round(details.final * 100);
+    if (finalScore >= 150) {
+      rationale.push(`🚀 Overall: Exceptional performance (${finalScore}% effectiveness)`);
+    } else if (finalScore >= 100) {
+      rationale.push(`⭐ Overall: Strong performance (${finalScore}% effectiveness)`);
+    } else if (finalScore >= 70) {
+      rationale.push(`👍 Overall: Adequate performance (${finalScore}% effectiveness)`);
+    } else {
+      rationale.push(`📉 Overall: Weak performance (${finalScore}% effectiveness)`);
+    }
+    
+    return rationale;
   }
 }
