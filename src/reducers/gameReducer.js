@@ -15,8 +15,13 @@ export const initialState = {
     storyPointsAvailable: GAME_CONSTANTS.INITIAL_STORY_POINTS,
     metrics: { ...GAME_CONSTANTS.INITIAL_METRICS },
     deployedPatterns: [],
-    eventLog: ['Game started - Welcome to FoodFlow!'],
+    eventLog: [{
+        week: 1,
+        message: 'Game started - Welcome to FoodFlow!',
+        type: 'info'
+    }],
     team: { ...GAME_CONSTANTS.TEAM_COMPOSITION },
+    teamExpertise: 2,
     score: 0
 };
 
@@ -37,40 +42,48 @@ export const gameReducer = (state, action) => {
                     completionWeek,
                     id: `${action.pattern.id}-${Date.now()}`
                 }],
-                eventLog: [...state.eventLog,
-                    `Week ${state.currentWeek}: Deployed ${action.pattern.name}`]
+                eventLog: [...state.eventLog, {
+                    week: state.currentWeek,
+                    message: `Deployed ${action.pattern.name}`,
+                    type: 'deploy'
+                }]
             };
 
         case gameActions.ADVANCE_WEEK:
             return {
                 ...state,
                 currentWeek: state.currentWeek + 1,
-                storyPointsAvailable: GAME_CONSTANTS.STORY_POINTS_PER_WEEK
+                storyPointsAvailable: GAME_CONSTANTS.STORY_POINTS_PER_WEEK,
+                teamExpertise: Math.min(5, state.teamExpertise + 0.1)
             };
 
         case gameActions.RESOLVE_CHALLENGE:
-            const damage = Math.max(0,
-                action.challengeStrength - action.defenseStrength);
-
+            const combatResult = action.combatResult;
             const newMetrics = { ...state.metrics };
-
-            if (action.challengeDamage.availability) {
-                newMetrics.availability = Math.max(0,
-                    newMetrics.availability - damage * 0.5);
-            }
-            if (action.challengeDamage.latency) {
-                newMetrics.latency = newMetrics.latency + damage * 20;
-            }
-            if (action.challengeDamage.ux) {
-                newMetrics.userExperience = Math.max(0,
-                    newMetrics.userExperience - damage * 2);
+            
+            // Apply damage from combat result with safe fallbacks
+            if (combatResult && combatResult.damage) {
+                for (let [metric, damage] of Object.entries(combatResult.damage)) {
+                    const damageValue = isNaN(damage) ? 0 : damage;
+                    if (metric === 'availability') {
+                        newMetrics.availability = Math.max(0, (newMetrics.availability || 95) - damageValue);
+                    } else if (metric === 'latency') {
+                        newMetrics.latency = (newMetrics.latency || 800) + damageValue * 10;
+                    } else if (metric === 'userExperience') {
+                        newMetrics.userExperience = Math.max(0, (newMetrics.userExperience || 70) - damageValue);
+                    }
+                }
             }
 
             return {
                 ...state,
                 metrics: newMetrics,
-                eventLog: [...state.eventLog,
-                    `Week ${state.currentWeek}: ${action.challengeName} dealt ${damage} damage`]
+                score: state.score + action.scoreGain,
+                eventLog: [...state.eventLog, {
+                    week: state.currentWeek,
+                    message: `${action.challengeName}: ${combatResult.success} defense! (${combatResult.challengeStrength} vs ${combatResult.totalDefense})`,
+                    type: 'combat'
+                }]
             };
 
         case gameActions.UPDATE_METRICS:

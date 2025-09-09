@@ -19,7 +19,7 @@ const GameStats = ({ gameState }) => {
         {
             icon: Activity,
             label: 'Availability',
-            value: `${gameState.metrics.availability.toFixed(1)}%`,
+            value: `${(gameState.metrics.availability || 95).toFixed(1)}%`,
             color: 'text-yellow-500'
         },
         {

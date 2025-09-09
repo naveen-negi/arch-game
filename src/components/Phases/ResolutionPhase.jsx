@@ -14,20 +14,20 @@ const ResolutionPhase = ({ onAdvanceWeek, gameState }) => {
                 <div className="mt-4 space-y-2">
                     <div className="flex justify-between">
                         <span>Availability:</span>
-                        <span className={gameState.metrics.availability > 95 ? 'text-green-400' : 'text-red-400'}>
-              {gameState.metrics.availability.toFixed(1)}%
+                        <span className={(gameState.metrics.availability || 95) > 95 ? 'text-green-400' : 'text-red-400'}>
+              {(gameState.metrics.availability || 95).toFixed(1)}%
             </span>
                     </div>
                     <div className="flex justify-between">
                         <span>Latency:</span>
-                        <span className={gameState.metrics.latency < 500 ? 'text-green-400' : 'text-red-400'}>
-              {gameState.metrics.latency}ms
+                        <span className={(gameState.metrics.latency || 800) < 500 ? 'text-green-400' : 'text-red-400'}>
+              {Math.round(gameState.metrics.latency || 800)}ms
             </span>
                     </div>
                     <div className="flex justify-between">
                         <span>User Experience:</span>
-                        <span className={gameState.metrics.userExperience > 70 ? 'text-green-400' : 'text-red-400'}>
-              {gameState.metrics.userExperience}
+                        <span className={(gameState.metrics.userExperience || 70) > 70 ? 'text-green-400' : 'text-red-400'}>
+              {Math.round(gameState.metrics.userExperience || 70)}
             </span>
                     </div>
                 </div>
