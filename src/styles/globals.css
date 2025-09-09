@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    body {
+        @apply bg-gray-900 text-white;
+    }
+}
+
+@layer components {
+    .card {
+        @apply bg-gray-800 rounded-lg p-4 border border-gray-700;
+    }
+
+    .btn-primary {
+        @apply bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-semibold transition-colors;
+    }
+
+    .btn-success {
+        @apply bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg font-semibold transition-colors;
+    }
+
+    .btn-danger {
+        @apply bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg font-semibold transition-colors;
+    }
+
+    .pattern-card {
+        @apply p-3 rounded cursor-pointer transition-all border;
+    }
+
+    .pattern-card-selected {
+        @apply bg-blue-900 border-blue-500;
+    }
+
+    .pattern-card-default {
+        @apply bg-gray-700 hover:bg-gray-600 border-gray-600;
+    }
+
+    .pattern-card-disabled {
+        @apply opacity-50 cursor-not-allowed;
+    }
+}
+
+@layer utilities {
+    @keyframes dice-roll {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .animate-dice {
+        animation: dice-roll 0.5s ease-in-out;
+    }
+
+    .text-gradient {
+        @apply bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent;
+    }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    @apply bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+    @apply bg-gray-600 rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500;
+}
