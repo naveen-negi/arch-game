@@ -56,24 +56,6 @@ Key factors:
 - Generate detailed breakdown of each pattern's contribution
 - Provide comprehensive rationale for educational purposes
 
-## File Structure & Components
-
-### Core Utilities
-- `src/utils/patternEffectiveness.js` - PatternEffectivenessCalculator class with detailed rationale methods
-- `src/utils/combatResolver.js` - CombatResolver class for challenge resolution
-- `src/reducers/gameReducer.js` - Game state management with actions for pattern deployment, challenge resolution
-
-### UI Components
-- `src/components/Phases/PlanningPhase.jsx` - Pattern deployment interface
-- `src/components/Phases/ChallengePhase.jsx` - Active challenge display with threat visualization
-- `src/components/Phases/ResolutionPhase.jsx` - Post-challenge analysis with educational feedback
-- `src/components/Patterns/PatternGrid.jsx` - Interactive pattern selection grid
-- `src/components/UI/Button.jsx` - Consistent button component with variants
-
-### Game Data
-- `src/data/patterns.js` - Architectural patterns with properties (cost, strength, expertise requirements)
-- `src/data/challenges.js` - Detailed challenges with symptoms, business impact, technical aspects
-
 ## UX Excellence Requirements
 
 ### Visual Design
@@ -102,47 +84,6 @@ Key factors:
 - **Performance**: Smooth animations and quick state updates
 
 ## Sample Game Data
-
-### Example Challenge
-```javascript
-{
-  id: 'traffic-spike',
-  name: 'Black Friday Traffic Surge',
-  difficulty: 'Medium',
-  baseStrength: 15,
-  detailedDescription: 'Your e-commerce platform is experiencing a 300% traffic increase during Black Friday sales.',
-  symptoms: ['Response times over 10 seconds', 'Database connection pool exhausted', 'Users getting timeout errors'],
-  businessImpact: 'Lost sales revenue, customer frustration, potential long-term brand damage',
-  aspects: ['high-load', 'database-pressure', 'user-experience'],
-  damage: { availability: 15, latency: 200, userExperience: 25 }
-}
-```
-
-### Example Pattern
-```javascript
-{
-  id: 'circuit-breaker',
-  name: 'Circuit Breaker',
-  cost: 8,
-  strength: 6,
-  expertiseRequired: 3,
-  category: 'resilience',
-  description: 'Prevents cascade failures by failing fast when services are down',
-  addresses: ['cascade-failure', 'dependency-failure', 'timeout-storm']
-}
-```
-
-## Key Implementation Details
-
-### State Management Pattern
-```javascript
-const gameActions = {
-  DEPLOY_PATTERN: 'DEPLOY_PATTERN',
-  RESOLVE_CHALLENGE: 'RESOLVE_CHALLENGE',
-  NEXT_CHALLENGE: 'NEXT_CHALLENGE',
-  UPDATE_METRICS: 'UPDATE_METRICS'
-};
-```
 
 ### Educational Rationale System
 Every pattern evaluation should return detailed rationale:

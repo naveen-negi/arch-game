@@ -1,10 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Button from '../UI/Button';
-import { ChevronRight, CheckCircle, Trophy, Shield, TrendingUp, AlertCircle, Info } from 'lucide-react';
+import { ChevronRight, CheckCircle, Trophy, Shield, TrendingUp, AlertCircle, Info, Sparkles, Star, Zap } from 'lucide-react';
 
 const ResolutionPhase = ({ onNextChallenge, gameState, isLastChallenge }) => {
     const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false);
+    const [showCelebration, setShowCelebration] = useState(false);
     const combatResult = gameState.lastCombatResult;
+
+    useEffect(() => {
+        // Trigger celebration animation for successful defenses
+        if (combatResult && (combatResult.success === 'perfect' || combatResult.success === 'good')) {
+            setShowCelebration(true);
+            const timer = setTimeout(() => setShowCelebration(false), 2000);
+            return () => clearTimeout(timer);
+        }
+    }, [combatResult]);
 
     const getSuccessColor = (success) => {
         switch (success) {
@@ -27,30 +37,109 @@ const ResolutionPhase = ({ onNextChallenge, gameState, isLastChallenge }) => {
     };
 
     return (
-        <div>
-            <h2 className="text-2xl font-bold mb-4 text-yellow-400">Challenge Resolved!</h2>
+        <div className="relative">
+            {/* Celebration Effects */}
+            {showCelebration && (
+                <div className="fixed inset-0 pointer-events-none z-50">
+                    {/* Confetti effect */}
+                    <div className="absolute inset-0">
+                        {[...Array(20)].map((_, i) => (
+                            <div key={i} 
+                                className="absolute animate-ping"
+                                style={{
+                                    left: `${Math.random() * 100}%`,
+                                    top: `${Math.random() * 100}%`,
+                                    animationDelay: `${Math.random() * 0.5}s`,
+                                    animationDuration: '1s'
+                                }}>
+                                <Sparkles className="w-6 h-6 text-yellow-400" />
+                            </div>
+                        ))}
+                    </div>
+                    {/* Celebration text */}
+                    <div className="absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                        <div className="text-6xl animate-bounce">🎉</div>
+                        <div className="text-2xl font-bold text-green-400 text-center animate-pulse">
+                            Excellent Defense!
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <h2 className={`text-2xl font-bold mb-4 text-yellow-400 animate-slide-up ${
+                combatResult?.success === 'perfect' ? 'animate-celebrate' : ''
+            }`}>
+                🛡️ Challenge Resolved!
+            </h2>
 
             {/* Combat Result Summary */}
             {combatResult && (
-                <div className="bg-gray-900 bg-opacity-50 border border-gray-600 rounded-lg p-6 mb-4">
+                <div className={`bg-gradient-to-r backdrop-blur-sm rounded-xl p-6 mb-4 border-2 transition-all duration-500 animate-fade-in-scale ${
+                    combatResult.success === 'perfect' ? 'from-green-900/50 to-emerald-900/50 border-green-400 animate-pulse-glow' :
+                    combatResult.success === 'good' ? 'from-blue-900/50 to-cyan-900/50 border-blue-400' :
+                    combatResult.success === 'adequate' ? 'from-yellow-900/50 to-orange-900/50 border-yellow-400' :
+                    'from-red-900/50 to-pink-900/50 border-red-400 animate-shake'
+                }`}>
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center">
-                            <span className="text-2xl mr-3">{getSuccessIcon(combatResult.success)}</span>
+                            <div className="relative">
+                                <span className={`text-4xl mr-4 transition-all duration-300 ${
+                                    combatResult.success === 'perfect' ? 'animate-celebrate' : 
+                                    combatResult.success === 'failed' ? 'animate-wiggle' : ''
+                                }`}>
+                                    {getSuccessIcon(combatResult.success)}
+                                </span>
+                                {combatResult.success === 'perfect' && (
+                                    <div className="absolute -top-2 -right-2 animate-bounce">
+                                        <Star className="w-6 h-6 text-yellow-400" />
+                                    </div>
+                                )}
+                            </div>
                             <div>
-                                <h3 className={`text-xl font-bold ${getSuccessColor(combatResult.success)}`}>
+                                <h3 className={`text-2xl font-bold ${getSuccessColor(combatResult.success)} animate-slide-in-left`}>
                                     {combatResult.success.charAt(0).toUpperCase() + combatResult.success.slice(1)} Defense!
                                 </h3>
-                                <p className="text-gray-400">
-                                    {combatResult.challengeStrength} challenge strength vs {combatResult.totalDefense.toFixed(1)} total defense
-                                </p>
+                                <div className="flex items-center mt-2">
+                                    <Zap className="w-4 h-4 text-blue-400 mr-2" />
+                                    <p className="text-gray-300">
+                                        <span className="font-semibold text-red-400">{combatResult.challengeStrength}</span> challenge strength vs 
+                                        <span className="font-semibold text-blue-400 ml-1">{combatResult.totalDefense.toFixed(1)}</span> total defense
+                                    </p>
+                                </div>
                             </div>
                         </div>
                         <div className="text-right">
-                            <p className="text-sm text-gray-400">Damage Ratio</p>
-                            <p className={`text-xl font-bold ${combatResult.damageRatio < 0.3 ? 'text-green-400' : combatResult.damageRatio < 0.7 ? 'text-yellow-400' : 'text-red-400'}`}>
-                                {Math.round(combatResult.damageRatio * 100)}%
-                            </p>
+                            <div className={`p-4 rounded-lg backdrop-blur-sm ${
+                                combatResult.damageRatio < 0.3 ? 'bg-green-500/20' :
+                                combatResult.damageRatio < 0.7 ? 'bg-yellow-500/20' : 'bg-red-500/20'
+                            }`}>
+                                <p className="text-sm text-gray-400 mb-1">Damage Taken</p>
+                                <p className={`text-3xl font-bold ${combatResult.damageRatio < 0.3 ? 'text-green-400' : combatResult.damageRatio < 0.7 ? 'text-yellow-400' : 'text-red-400'} ${
+                                    combatResult.damageRatio < 0.3 ? 'animate-bounce' : combatResult.damageRatio > 0.8 ? 'animate-shake' : ''
+                                }`}>
+                                    {Math.round(combatResult.damageRatio * 100)}%
+                                </p>
+                                <div className="w-20 h-2 bg-gray-700 rounded-full overflow-hidden mt-2">
+                                    <div className={`h-full transition-all duration-1000 ${
+                                        combatResult.damageRatio < 0.3 ? 'bg-green-400' :
+                                        combatResult.damageRatio < 0.7 ? 'bg-yellow-400' : 'bg-red-400'
+                                    }`} style={{width: `${Math.round(combatResult.damageRatio * 100)}%`}} />
+                                </div>
+                            </div>
                         </div>
+                    </div>
+
+                    {/* Success message */}
+                    <div className={`text-center p-3 rounded-lg backdrop-blur-sm ${
+                        combatResult.success === 'perfect' ? 'bg-green-500/20 text-green-300' :
+                        combatResult.success === 'good' ? 'bg-blue-500/20 text-blue-300' :
+                        combatResult.success === 'adequate' ? 'bg-yellow-500/20 text-yellow-300' :
+                        'bg-red-500/20 text-red-300'
+                    }`}>
+                        {combatResult.success === 'perfect' && "🌟 Outstanding! Your architecture withstood the challenge brilliantly!"}
+                        {combatResult.success === 'good' && "👍 Well done! Your defenses performed admirably!"}
+                        {combatResult.success === 'adequate' && "⚡ Decent defense, but there's room for improvement!"}
+                        {combatResult.success === 'failed' && "💪 Challenge failed, but every failure teaches valuable lessons!"}
                     </div>
                 </div>
             )}

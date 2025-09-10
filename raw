@@ -1,547 +1,177 @@
-import React, { useState, useEffect, useReducer } from 'react';
-import { AlertCircle, Shield, Zap, Users, Package, TrendingUp, Activity, Award, Clock, DollarSign, ChevronRight, Dice1, Dice2, Dice3, Dice4, Dice5, Dice6 } from 'lucide-react';
+# How to Play "Cache Wars - The Dependency Dilemma"
 
-// Game state reducer
-const gameReducer = (state, action) => {
-  switch (action.type) {
-    case 'DEPLOY_PATTERN':
-      if (state.budget < action.pattern.cost) return state;
-      return {
-        ...state,
-        budget: state.budget - action.pattern.cost,
-        deployedPatterns: [...state.deployedPatterns, {
-          ...action.pattern,
-          deployedWeek: state.currentWeek,
-          completionWeek: state.currentWeek + Math.ceil(action.pattern.cost / 4)
-        }],
-        eventLog: [...state.eventLog, `Week ${state.currentWeek}: Deployed ${action.pattern.name}`]
-      };
+Great question! This is a **tabletop/paper-based strategy game** that can be played solo or with a team. Here's how to actually play it:
 
-    case 'ADVANCE_WEEK':
-      return {
-        ...state,
-        currentWeek: state.currentWeek + 1,
-        storyPointsAvailable: 32 // Reset weekly story points
-      };
+## 🎮 Quick Start Guide
 
-    case 'RESOLVE_CHALLENGE':
-      const damage = Math.max(0, action.challengeStrength - action.defenseStrength);
-      return {
-        ...state,
-        metrics: {
-          ...state.metrics,
-          availability: Math.max(0, state.metrics.availability - damage * 0.5),
-          latency: state.metrics.latency + damage * 50,
-          userExperience: Math.max(0, state.metrics.userExperience - damage * 2)
-        },
-        eventLog: [...state.eventLog, `Week ${state.currentWeek}: ${action.challengeName} dealt ${damage} damage`]
-      };
+### Materials Needed:
+- **Paper & pen** (or a spreadsheet/digital doc)
+- **Two six-sided dice** (or use an online dice roller)
+- **Timer** (optional, for timed decision phases)
 
-    case 'UPDATE_METRICS':
-      return {
-        ...state,
-        metrics: { ...state.metrics, ...action.metrics }
-      };
+### Basic Setup:
 
-    default:
-      return state;
-  }
-};
+1. **Create Your Game Board** (tracking sheet):
+```
+WEEK: [1][2][3][4][5][6][7][8]
+BUDGET: 100 AP
+METRICS:
+- Response Time: 500ms (current)
+- Availability: 95% (current)
+- Security Score: 0/10
+- Cache Hit Rate: 0%
 
-// Initial game state
-const initialState = {
-  currentWeek: 1,
-  budget: 120,
-  storyPointsAvailable: 32,
-  metrics: {
-    availability: 95.0,
-    latency: 800,
-    userExperience: 70,
-    security: 50
-  },
-  deployedPatterns: [],
-  eventLog: ['Game started - Welcome to FoodFlow!'],
-  team: {
-    senior: 3,
-    mid: 4,
-    junior: 2
-  }
-};
+DEPLOYED PATTERNS:
+- (empty)
 
-// Pattern definitions
-const patterns = {
-  operational: [
-    {
-      id: 'load-shedding',
-      name: 'Load Shedding',
-      category: 'Operational',
-      cost: 4,
-      icon: Shield,
-      description: 'Deprioritize non-essential work during overload',
-      effectiveness: { stability: 5, goodput: 4 },
-      weaknesses: ['Indiscriminate impact', 'Work rejection'],
-      restaurant: 'Like skipping napkin folding during rush'
-    },
-    {
-      id: 'fairness-quota',
-      name: 'Fairness & Quota Management',
-      category: 'Operational',
-      cost: 6,
-      icon: Users,
-      description: 'Ensure equitable resource access',
-      effectiveness: { fairness: 4, performance: 3 },
-      weaknesses: ['Legitimate burst rejection', 'Customer frustration'],
-      restaurant: 'Like holiday dining time limits'
-    },
-    {
-      id: 'auto-scaling',
-      name: 'Auto-scaling',
-      category: 'Operational',
-      cost: 8,
-      icon: TrendingUp,
-      description: 'Dynamically adjust capacity',
-      effectiveness: { elasticity: 5, cost: 3 },
-      weaknesses: ['Scaling lag', 'Cold starts'],
-      restaurant: 'Like adjusting menu for seasons'
-    }
-  ],
-  architectural: [
-    {
-      id: 'queue-management',
-      name: 'Queue Depth Management',
-      category: 'Architectural',
-      cost: 5,
-      icon: Package,
-      description: 'Control queue size to prevent overflow',
-      effectiveness: { latency: 5, timeout: 4 },
-      weaknesses: ['Work rejection', 'Sizing challenges'],
-      restaurant: 'Like managing restaurant wait list'
-    },
-    {
-      id: 'constant-work',
-      name: 'Constant Work Pattern',
-      category: 'Architectural',
-      cost: 7,
-      icon: Activity,
-      description: 'Perform consistent work regardless of load',
-      effectiveness: { predictability: 6, stability: 5 },
-      weaknesses: ['Wasted resources', 'Higher cost'],
-      restaurant: 'Like serving preset hors d\'oeuvres'
-    },
-    {
-      id: 'circuit-breaker',
-      name: 'Circuit Breakers',
-      category: 'Client',
-      cost: 6,
-      icon: Zap,
-      description: 'Prevent cascading failures',
-      effectiveness: { isolation: 5, recovery: 4 },
-      weaknesses: ['False positives', 'Threshold tuning'],
-      restaurant: 'Like stopping orders when kitchen overwhelmed'
-    }
-  ]
-};
+TEAM STATUS:
+- Sr Engineers: 2 (4 pts/week each)
+- Mid Engineers: 3 (2 pts/week each)
+```
 
-// Challenge waves
-const challenges = [
-  {
-    id: 'coffee-rush',
-    name: 'Morning Coffee Rush',
-    week: 2,
-    threat: 2,
-    description: '3x traffic spike 7-9 AM',
-    damage: { ux: 5 },
-    counters: ['load-shedding', 'auto-scaling']
-  },
-  {
-    id: 'restaurant-outage',
-    name: 'Popular Restaurant Outage',
-    week: 3,
-    threat: 3,
-    description: 'Top restaurant API fails',
-    damage: { availability: 10, ux: 8 },
-    counters: ['circuit-breaker', 'fairness-quota']
-  },
-  {
-    id: 'thundering-herd',
-    name: 'The Thundering Herd',
-    week: 4,
-    threat: 4,
-    description: '50,000 simultaneous orders',
-    damage: { availability: 15 },
-    counters: ['queue-management', 'load-shedding']
-  }
-];
+## 🎯 How to Play Each Turn (Week)
 
-// Dice component
-const Dice = ({ value, rolling }) => {
-  const DiceIcons = [Dice1, Dice2, Dice3, Dice4, Dice5, Dice6];
-  const DiceIcon = DiceIcons[value - 1] || Dice1;
+### Phase 1: Intelligence (1-2 min)
+Look at the upcoming challenges for your current week. Roll 2d6 to add randomness:
+- **2-4**: Challenge arrives early (this week)
+- **5-9**: Challenge arrives as scheduled
+- **10-12**: You get advance warning (+1 week to prepare)
 
-  return (
-    <div className={`inline-block ${rolling ? 'animate-spin' : ''}`}>
-      <DiceIcon className="w-12 h-12 text-blue-600" />
-    </div>
-  );
-};
+### Phase 2: Planning (3-5 min)
+Choose which pattern(s) to deploy:
+1. Check your available budget (Architecture Points)
+2. Check your team capacity (story points available)
+3. Select patterns that counter incoming challenges
+4. Consider synergies between patterns
 
-// Main game component
-export default function ArchitectureStrategyGame() {
-  const [gameState, dispatch] = useReducer(gameReducer, initialState);
-  const [selectedPattern, setSelectedPattern] = useState(null);
-  const [diceRoll, setDiceRoll] = useState({ value1: 1, value2: 1, rolling: false });
-  const [activeChallenge, setActiveChallenge] = useState(null);
-  const [gamePhase, setGamePhase] = useState('planning'); // planning, challenge, resolution
+### Phase 3: Deployment
+Mark off the costs:
+- Subtract Architecture Points from budget
+- Assign engineers to implement patterns
+- Patterns take 1-2 weeks to deploy (based on complexity)
 
-  // Roll dice function
-  const rollDice = () => {
-    setDiceRoll({ ...diceRoll, rolling: true });
-    setTimeout(() => {
-      const value1 = Math.floor(Math.random() * 6) + 1;
-      const value2 = Math.floor(Math.random() * 6) + 1;
-      setDiceRoll({ value1, value2, rolling: false });
-    }, 500);
-  };
+### Phase 4: Resolution
+When a challenge hits:
+1. **Roll 2d6 for base challenge strength**
+2. **Check your defenses:**
+   - If you have "Effective Counter": Challenge strength -4
+   - If you have partial defense: Challenge strength -2
+   - If pattern is "Resistant to": No effect
+3. **Apply damage** if challenge strength > 0:
+   - Subtract from relevant metrics
+   - Track impact on victory conditions
 
-  // Check for challenges
-  useEffect(() => {
-    const currentChallenge = challenges.find(c => c.week === gameState.currentWeek);
-    if (currentChallenge) {
-      setActiveChallenge(currentChallenge);
-      setGamePhase('challenge');
-    }
-  }, [gameState.currentWeek]);
+### Phase 5: Evolution
+- Gain experience: Team levels up after successfully defending
+- Random events (roll d6):
+  - 1: Budget cut! Lose 10 AP
+  - 2-5: Normal operations
+  - 6: Bonus budget! Gain 15 AP
 
-  // Calculate defense strength
-  const calculateDefense = (challenge) => {
-    let defense = 0;
-    gameState.deployedPatterns.forEach(pattern => {
-      if (pattern.completionWeek <= gameState.currentWeek) {
-        if (challenge.counters.includes(pattern.id)) {
-          defense += 4;
-        } else {
-          defense += 1;
-        }
-      }
-    });
-    return defense;
-  };
+## 🎲 Combat Resolution Example
 
-  // Handle pattern deployment
-  const deployPattern = (pattern) => {
-    dispatch({ type: 'DEPLOY_PATTERN', pattern });
-    setSelectedPattern(null);
-  };
+**Scenario**: Week 2, Black Friday Preview hits!
+- Base challenge: Roll 2d6 = 8
+- You deployed: In-memory cache (effective counter)
+- Resolution: 8 - 4 = 4 damage
+- Apply: -4 to User Experience metric
 
-  // Resolve challenge
-  const resolveChallenge = () => {
-    if (!activeChallenge) return;
+## 🏆 Ways to Play
 
-    const challengeStrength = diceRoll.value1 + diceRoll.value2;
-    const defenseStrength = calculateDefense(activeChallenge);
+### Solo Mode (Recommended for First Play)
+Play all 8 weeks, trying to achieve the victory conditions. Keep score and try to beat it next time!
 
-    dispatch({
-      type: 'RESOLVE_CHALLENGE',
-      challengeName: activeChallenge.name,
-      challengeStrength,
-      defenseStrength
-    });
+### Team Mode (2-4 players)
+- **Collaborative**: Work together, discuss each decision
+- **Competitive**: Each player architects a solution separately, compare scores
+- **Role-play**: Each player represents different stakeholder (Performance, Security, Cost, Reliability)
 
-    setGamePhase('resolution');
-  };
+### Speed Run Variant
+Set a 30-minute timer for the entire game. Make quick decisions!
 
-  // Advance to next week
-  const advanceWeek = () => {
-    dispatch({ type: 'ADVANCE_WEEK' });
-    setGamePhase('planning');
-    setActiveChallenge(null);
-  };
+### Ironman Mode
+No takebacks! Once you deploy a pattern, it's permanent.
 
-  // Calculate score
-  const calculateScore = () => {
-    const availScore = Math.max(0, (gameState.metrics.availability - 90) * 3);
-    const latencyScore = Math.max(0, (1000 - gameState.metrics.latency) / 20);
-    const uxScore = gameState.metrics.userExperience / 2;
-    return Math.round(availScore + latencyScore + uxScore);
-  };
+## 📱 Digital Adaptations
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700">
-          <h1 className="text-3xl font-bold mb-2 text-blue-400">
-            🍔 The Lunch Rush Resilience Protocol
-          </h1>
-          <p className="text-gray-300">FoodFlow Architecture Strategy Game</p>
-        </div>
+### Spreadsheet Version
+Create a Google Sheet with:
+- Automated budget tracking
+- Random number generation for challenges
+- Scoring calculator
+- Pattern synergy matrix
 
-        {/* Game Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-            <div className="flex items-center justify-between">
-              <Clock className="w-8 h-8 text-blue-500" />
-              <div className="text-right">
-                <p className="text-sm text-gray-400">Week</p>
-                <p className="text-2xl font-bold">{gameState.currentWeek}/10</p>
-              </div>
-            </div>
-          </div>
+### Discord/Slack Play
+- GM posts weekly challenges
+- Players submit their deployments
+- GM resolves and narrates outcomes
+- Great for async team play!
 
-          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-            <div className="flex items-center justify-between">
-              <DollarSign className="w-8 h-8 text-green-500" />
-              <div className="text-right">
-                <p className="text-sm text-gray-400">Budget</p>
-                <p className="text-2xl font-bold">{gameState.budget} AP</p>
-              </div>
-            </div>
-          </div>
+### Simple Web App (DIY)
+Build a basic React app using the artifact system:
+- Track state for all metrics
+- Implement the challenge system
+- Auto-calculate combat resolution
+- Add visualizations for metrics
 
-          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-            <div className="flex items-center justify-between">
-              <Activity className="w-8 h-8 text-yellow-500" />
-              <div className="text-right">
-                <p className="text-sm text-gray-400">Availability</p>
-                <p className="text-2xl font-bold">{gameState.metrics.availability.toFixed(1)}%</p>
-              </div>
-            </div>
-          </div>
+## 🎯 Simplified "Coffee Break" Version
 
-          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-            <div className="flex items-center justify-between">
-              <Award className="w-8 h-8 text-purple-500" />
-              <div className="text-right">
-                <p className="text-sm text-gray-400">Score</p>
-                <p className="text-2xl font-bold">{calculateScore()}</p>
-              </div>
-            </div>
-          </div>
-        </div>
+**5-Minute Quick Play:**
+1. Draw 3 random challenges
+2. You have 50 points to spend
+3. Deploy patterns to counter all 3
+4. Roll dice for each challenge
+5. Score: Damage taken × -1 + Points remaining
 
-        {/* Main Game Area */}
-        <div className="grid md:grid-cols-3 gap-6">
-          {/* Left Panel - Patterns */}
-          <div className="md:col-span-1">
-            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-              <h2 className="text-xl font-bold mb-4 text-blue-400">Available Patterns</h2>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {[...patterns.operational, ...patterns.architectural].map(pattern => (
-                  <div
-                    key={pattern.id}
-                    onClick={() => setSelectedPattern(pattern)}
-                    className={`p-3 rounded cursor-pointer transition-all ${
-                      selectedPattern?.id === pattern.id
-                        ? 'bg-blue-900 border-blue-500'
-                        : 'bg-gray-700 hover:bg-gray-600'
-                    } border ${
-                      gameState.budget < pattern.cost
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'border-gray-600'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <pattern.icon className="w-5 h-5" />
-                        <span className="font-semibold">{pattern.name}</span>
-                      </div>
-                      <span className="text-sm text-yellow-400">{pattern.cost} AP</span>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">{pattern.restaurant}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+## 📊 Scoring Your Game
 
-            {/* Deployed Patterns */}
-            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 mt-4">
-              <h2 className="text-xl font-bold mb-4 text-green-400">Deployed Patterns</h2>
-              <div className="space-y-2">
-                {gameState.deployedPatterns.length === 0 ? (
-                  <p className="text-gray-500 text-sm">No patterns deployed yet</p>
-                ) : (
-                  gameState.deployedPatterns.map((pattern, idx) => (
-                    <div key={idx} className="bg-gray-700 p-2 rounded text-sm">
-                      <div className="flex justify-between">
-                        <span>{pattern.name}</span>
-                        <span className={pattern.completionWeek <= gameState.currentWeek ? 'text-green-400' : 'text-yellow-400'}>
-                          {pattern.completionWeek <= gameState.currentWeek ? '✓ Active' : `Week ${pattern.completionWeek}`}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
+**End Game Scoring:**
+```
+Performance Score: ___/30
+- Response time < 100ms: 15 pts
+- Response time < 200ms: 10 pts
+- Response time < 500ms: 5 pts
+- Cache hit rate × 15
 
-          {/* Center Panel - Game Board */}
-          <div className="md:col-span-2">
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              {gamePhase === 'planning' && (
-                <div>
-                  <h2 className="text-2xl font-bold mb-4 text-blue-400">Planning Phase</h2>
+Availability Score: ___/30
+- Never dropped below 99.9%: 30 pts
+- Never dropped below 99%: 20 pts
+- Never dropped below 95%: 10 pts
 
-                  {selectedPattern && (
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h3 className="text-lg font-bold mb-2">{selectedPattern.name}</h3>
-                      <p className="text-sm text-gray-300 mb-3">{selectedPattern.description}</p>
-                      <div className="grid grid-cols-2 gap-4 mb-3">
-                        <div>
-                          <p className="text-xs text-gray-400 mb-1">Strengths:</p>
-                          {Object.entries(selectedPattern.effectiveness).map(([key, val]) => (
-                            <div key={key} className="text-sm">
-                              <span className="capitalize">{key}:</span>
-                              <span className="ml-2 text-green-400">+{val}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-400 mb-1">Weaknesses:</p>
-                          {selectedPattern.weaknesses.map((weak, idx) => (
-                            <p key={idx} className="text-sm text-red-400">• {weak}</p>
-                          ))}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => deployPattern(selectedPattern)}
-                        disabled={gameState.budget < selectedPattern.cost}
-                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-4 py-2 rounded transition-colors"
-                      >
-                        Deploy Pattern ({selectedPattern.cost} AP)
-                      </button>
-                    </div>
-                  )}
+Security Score: ___/20
+- Passed all security challenges: 20 pts
+- Partial defense: 10 pts
 
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-sm text-gray-400">Story Points Available</p>
-                      <p className="text-xl font-bold">{gameState.storyPointsAvailable}</p>
-                    </div>
-                    <button
-                      onClick={advanceWeek}
-                      className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold transition-colors flex items-center"
-                    >
-                      Advance to Week {gameState.currentWeek + 1}
-                      <ChevronRight className="ml-2" />
-                    </button>
-                  </div>
-                </div>
-              )}
+Efficiency Score: ___/20
+- Points remaining ÷ 5
+- No operational costs: +5 bonus
 
-              {gamePhase === 'challenge' && activeChallenge && (
-                <div>
-                  <h2 className="text-2xl font-bold mb-4 text-red-400">⚔️ Challenge Phase</h2>
-                  <div className="bg-red-900 bg-opacity-30 border border-red-600 rounded-lg p-4 mb-4">
-                    <h3 className="text-xl font-bold mb-2">{activeChallenge.name}</h3>
-                    <p className="text-gray-300 mb-2">{activeChallenge.description}</p>
-                    <div className="flex items-center space-x-2 mb-3">
-                      <span className="text-sm text-gray-400">Threat Level:</span>
-                      {[...Array(activeChallenge.threat)].map((_, i) => (
-                        <span key={i} className="text-yellow-400">⭐</span>
-                      ))}
-                    </div>
-                  </div>
+TOTAL: ___/100
+```
 
-                  <div className="text-center">
-                    <p className="mb-4 text-gray-300">Roll dice to determine challenge strength!</p>
-                    <div className="flex justify-center space-x-4 mb-4">
-                      <Dice value={diceRoll.value1} rolling={diceRoll.rolling} />
-                      <Dice value={diceRoll.value2} rolling={diceRoll.rolling} />
-                    </div>
-                    <div className="mb-4">
-                      <p className="text-2xl font-bold">
-                        Challenge Strength: {diceRoll.value1 + diceRoll.value2}
-                      </p>
-                      <p className="text-lg text-blue-400">
-                        Your Defense: {calculateDefense(activeChallenge)}
-                      </p>
-                    </div>
-                    <div className="flex justify-center space-x-4">
-                      <button
-                        onClick={rollDice}
-                        disabled={diceRoll.rolling}
-                        className="bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 px-6 py-3 rounded-lg font-semibold transition-colors"
-                      >
-                        Roll Dice
-                      </button>
-                      <button
-                        onClick={resolveChallenge}
-                        className="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg font-semibold transition-colors"
-                      >
-                        Resolve Challenge
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+## 🚀 Make It More Interactive
 
-              {gamePhase === 'resolution' && (
-                <div>
-                  <h2 className="text-2xl font-bold mb-4 text-yellow-400">Resolution Phase</h2>
-                  <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                    <p className="text-lg mb-2">Challenge resolved!</p>
-                    <p className="text-gray-300">Check the metrics panel to see the impact.</p>
-                  </div>
-                  <button
-                    onClick={advanceWeek}
-                    className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold transition-colors"
-                  >
-                    Continue to Week {gameState.currentWeek + 1}
-                  </button>
-                </div>
-              )}
+**Physical Props:**
+- Use index cards for each pattern (makes it feel like a card game)
+- Tokens/chips for Architecture Points
+- Red/green markers for tracking metrics
+- Challenge cards you draw each week
 
-              {/* Upcoming Challenges */}
-              <div className="mt-6">
-                <h3 className="text-lg font-bold mb-3 text-yellow-400">Upcoming Challenges</h3>
-                <div className="space-y-2">
-                  {challenges
-                    .filter(c => c.week > gameState.currentWeek && c.week <= gameState.currentWeek + 3)
-                    .map(challenge => (
-                      <div key={challenge.id} className="bg-gray-700 p-2 rounded flex justify-between items-center">
-                        <span className="text-sm">{challenge.name}</span>
-                        <span className="text-xs text-gray-400">Week {challenge.week}</span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </div>
+**Narrative Mode:**
+Write a short "incident report" after each challenge resolution, explaining what happened in story form. Makes great learning material!
 
-            {/* Event Log */}
-            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 mt-4">
-              <h3 className="text-lg font-bold mb-3 text-blue-400">Event Log</h3>
-              <div className="space-y-1 max-h-32 overflow-y-auto">
-                {gameState.eventLog.slice(-5).reverse().map((event, idx) => (
-                  <p key={idx} className="text-sm text-gray-300">
-                    <AlertCircle className="inline w-3 h-3 mr-1" />
-                    {event}
-                  </p>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+## 💡 Start Simple!
 
-        {/* Victory Conditions */}
-        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 mt-6">
-          <h3 className="text-lg font-bold mb-3 text-green-400">Victory Conditions</h3>
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className={`p-3 rounded ${gameState.metrics.latency < 500 ? 'bg-green-900' : 'bg-gray-700'}`}>
-              <p className="text-sm font-semibold">P99 Latency &lt; 500ms</p>
-              <p className="text-xs text-gray-400">Current: {gameState.metrics.latency}ms</p>
-            </div>
-            <div className={`p-3 rounded ${gameState.metrics.availability > 99.9 ? 'bg-green-900' : 'bg-gray-700'}`}>
-              <p className="text-sm font-semibold">Availability &gt; 99.9%</p>
-              <p className="text-xs text-gray-400">Current: {gameState.metrics.availability.toFixed(2)}%</p>
-            </div>
-            <div className={`p-3 rounded ${gameState.metrics.userExperience > 80 ? 'bg-green-900' : 'bg-gray-700'}`}>
-              <p className="text-sm font-semibold">User Experience &gt; 80</p>
-              <p className="text-xs text-gray-400">Current: {gameState.metrics.userExperience}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+For your first game:
+1. Just track Budget and Response Time
+2. Play only weeks 1-4
+3. Focus on surviving the challenges
+4. Don't worry about optimal scoring
+
+Then add complexity as you get comfortable with the mechanics.
+
+---
+
+**Want to start playing right now?** Grab a piece of paper, write down your starting resources, and face Week 1! The first decision: Do you start building defenses immediately, or wait to see how the first challenge goes?
+
+*Remember: This game is really a structured way to think through architectural trade-offs. The real victory is understanding when and why to use different caching patterns!*
